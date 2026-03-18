@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                Int                @id @default(autoincrement())
+  nome              String             @db.VarChar(100)
+  email             String             @unique @db.VarChar(150)
+  cpf               String             @unique @db.VarChar(14)
+  senha             String             @db.VarChar(255)
+  criadoEm          DateTime?          @map("criado_em") @db.Timestamp(6)
+  ativo             Boolean?           @default(true)
+  statusId          Int?               @map("status_id")
+  otpVerificacao    Boolean?           @default(false) @map("otp_verificacao")
+  otpSecret         String?            @map("otp_secret") @db.VarChar(255)
+  cargosUsuario     CargoUsuario[]
+  permissoesUsuario PermissaoUsuario[]
+  status            Status?            @relation(fields: [statusId], references: [id])
+
+  @@index([statusId])
+  @@map("usuarios")
+}
+
+model Status {
+  id       Int       @id @default(autoincrement())
+  nome     String    @db.VarChar(50)
+  clientes Cliente[]
+  usuarios Usuario[]
+
+  @@map("status")
+}
+
+model Cargo {
+  id              Int              @id @default(autoincrement())
+  nome            String           @db.VarChar(50)
+  usuariosCargo   CargoUsuario[]
+  permissoesCargo CargoPermissao[]
+
+  @@map("cargos")
+}
+
+model CargoUsuario {
+  id        Int     @id @default(autoincrement())
+  usuarioId Int     @map("usuario_id")
+  cargoId   Int     @map("cargo_id")
+  cargo     Cargo   @relation(fields: [cargoId], references: [id])
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([cargoId])
+  @@map("cargo_usuario")
+}
+
+model Permissao {
+  id                Int                @id @default(autoincrement())
+  nome              String             @db.VarChar(100)
+  cargosPermissao   CargoPermissao[]
+  usuariosPermissao PermissaoUsuario[]
+
+  @@map("permissoes")
+}
+
+model CargoPermissao {
+  id          Int       @id @default(autoincrement())
+  cargoId     Int       @map("cargo_id")
+  permissaoId Int       @map("permissao_id")
+  cargo       Cargo     @relation(fields: [cargoId], references: [id])
+  permissao   Permissao @relation(fields: [permissaoId], references: [id])
+
+  @@index([cargoId])
+  @@index([permissaoId])
+  @@map("permissoes_cargo")
+}
+
+model PermissaoUsuario {
+  id          Int       @id @default(autoincrement())
+  usuarioId   Int       @map("usuario_id")
+  permissaoId Int       @map("permissao_id")
+  permissao   Permissao @relation(fields: [permissaoId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([permissaoId])
+  @@map("permissoes_usuario")
+}
+
+model Mesa {
+  id           Int           @id @default(autoincrement())
+  numero       Int           @unique
+  ocupada      Boolean       @default(false)
+  mesaComandas MesaComanda[]
+
+  @@index([numero])
+  @@map("mesas")
+}
+
+model CategoriaProduto {
+  id       Int       @id @default(autoincrement())
+  nome     String    @db.VarChar(100)
+  produtos Produto[]
+
+  @@map("categoria_produto")
+}
+
+model Produto {
+  id              Int                            @id @default(autoincrement())
+  nome            String                         @db.VarChar(100)
+  preco           Decimal?                       @db.Decimal(10, 2)
+  estoque         Int?
+  categoriaId     Int?                           @map("categoria_id")
+  historicoPrecos HistoricoPreco[]
+  itensComandaQtd ItemComandaProdutoQuantidade[]
+  categoria       CategoriaProduto?              @relation(fields: [categoriaId], references: [id])
+
+  @@index([categoriaId])
+  @@map("produtos")
+}
+
+model Cliente {
+  id                   Int                   @id @default(autoincrement())
+  nome                 String                @db.VarChar(100)
+  cpf                  String?               @unique @db.VarChar(14)
+  email                String?               @db.VarChar(150)
+  telefone             String?               @db.VarChar(20)
+  statusId             Int?                  @map("status_id")
+
+  saldo                Decimal?              @db.Decimal(10, 2)
+  criadoEm             DateTime?             @map("criado_em") @db.Timestamp(6)
+  limite               Decimal?              @db.Decimal(10, 2)
+  consumido            Decimal?              @db.Decimal(10, 2)
+  bloqueado            Boolean?
+  matricula            Int?    
+  convenio             String?               @db.VarChar(100)
+  filial               String?               @db.VarChar(100)
+
+  status               Status?               @relation(fields: [statusId], references: [id])
+  comandas             Comanda[]
+  conveniosCliente     ConvenioCliente[]
+  departamentosCliente DepartamentoCliente[]
+
+  @@index([statusId])
+  @@map("clientes")
+}
+
+model Convenio {
+  id               Int               @id @default(autoincrement())
+  nome             String            @db.VarChar(100)
+  clientesConvenio ConvenioCliente[]
+
+  @@map("convenio")
+}
+
+model ConvenioCliente {
+  id         Int      @id @default(autoincrement())
+  convenioId Int      @map("convenio_id")
+  clienteId  Int      @map("cliente_id")
+  cliente    Cliente  @relation(fields: [clienteId], references: [id])
+  convenio   Convenio @relation(fields: [convenioId], references: [id])
+
+  @@index([convenioId])
+  @@index([clienteId])
+  @@map("convenio_cliente")
+}
+
+model Departamento {
+  id                   Int                   @id @default(autoincrement())
+  nome                 String                @db.VarChar(100)
+  clientesDepartamento DepartamentoCliente[]
+
+  @@map("departamento")
+}
+
+model DepartamentoCliente {
+  id             Int          @id @default(autoincrement())
+  departamentoId Int          @map("departamento_id")
+  clienteId      Int          @map("cliente_id")
+  cliente        Cliente      @relation(fields: [clienteId], references: [id])
+  departamento   Departamento @relation(fields: [departamentoId], references: [id])
+
+  @@index([departamentoId])
+  @@index([clienteId])
+  @@map("departamento_cliente")
+}
+
+model Comanda {
+  id         Int                @id @default(autoincrement())
+  code       String             @unique @db.VarChar(50)
+  clienteId  Int?               @map("cliente_id")
+  abertaEm   DateTime?          @map("aberta_em") @db.Timestamp(6)
+  fechadaEm  DateTime?          @map("fechada_em") @db.Timestamp(6)
+  cliente    Cliente?           @relation(fields: [clienteId], references: [id])
+  historicos HistoricoComanda[]
+  itens      ItemComanda[]
+  mesas      MesaComanda[]
+
+  @@index([clienteId])
+  @@map("comandas")
+}
+
+model MesaComanda {
+  id        Int     @id @default(autoincrement())
+  mesaId    Int     @map("mesa_id")
+  comandaId Int     @map("comanda_id")
+  comanda   Comanda @relation(fields: [comandaId], references: [id])
+  mesa      Mesa    @relation(fields: [mesaId], references: [id])
+
+  @@index([mesaId])
+  @@index([comandaId])
+  @@map("mesa_comanda")
+}
+
+model ItemComanda {
+  id                 Int                            @id @default(autoincrement())
+  comandaId          Int                            @map("comanda_id")
+  observacao         String?                        @db.VarChar(255)
+  comanda            Comanda                        @relation(fields: [comandaId], references: [id])
+  produtosQuantidade ItemComandaProdutoQuantidade[]
+
+  @@index([comandaId])
+  @@map("itens_comanda")
+}
+
+model ItemComandaProdutoQuantidade {
+  id            Int         @id @default(autoincrement())
+  itemComandaId Int         @map("item_comanda_id")
+  produtoId     Int         @map("produto_id")
+  quantidade    Int
+  precoUnitario Decimal?    @map("preco_unitario") @db.Decimal(10, 2)
+  itemComanda   ItemComanda @relation(fields: [itemComandaId], references: [id])
+  produto       Produto     @relation(fields: [produtoId], references: [id])
+
+  @@index([itemComandaId])
+  @@index([produtoId])
+  @@map("itens_comanda_produtos_quantidade")
+}
+
+model HistoricoComanda {
+  id        Int       @id @default(autoincrement())
+  comandaId Int       @map("comanda_id")
+  descricao String    @db.VarChar(255)
+  criadoEm  DateTime? @map("criado_em") @db.Timestamp(6)
+  comanda   Comanda   @relation(fields: [comandaId], references: [id])
+
+  @@index([comandaId])
+  @@map("historico_comandas")
+}
+
+model HistoricoPreco {
+  id            Int       @id @default(autoincrement())
+  produtoId     Int       @map("produto_id")
+  precoAnterior Decimal?  @map("preco_anterior") @db.Decimal(10, 2)
+  precoNovo     Decimal?  @map("preco_novo") @db.Decimal(10, 2)
+  criadoEm      DateTime? @map("criado_em") @db.Timestamp(6)
+  produto       Produto   @relation(fields: [produtoId], references: [id])
+
+  @@index([produtoId])
+  @@map("historico_precos")
+}
+
+model LogAtendimento {
+  id        Int       @id @default(autoincrement())
+  descricao String    @db.VarChar(255)
+  criadoEm  DateTime? @map("criado_em") @db.Timestamp(6)
+
+  @@map("logs_atendimentos")
+}
+
+model MovimentacaoCaixa {
+  id        Int       @id @default(autoincrement())
+  tipo      String    @db.VarChar(50)
+  valor     Decimal   @db.Decimal(10, 2)
+  descricao String?   @db.VarChar(255)
+  criadoEm  DateTime? @map("criado_em") @db.Timestamp(6)
+
+  @@map("movimentacao_caixa")
+}
+
+model TipoPagamento {
+  id   Int    @id @default(autoincrement())
+  nome String @db.VarChar(50)
+
+  @@map("tipos_pagamento")
+}
+
+model Relatorio {
+  id       Int       @id @default(autoincrement())
+  nome     String    @db.VarChar(100)
+  criadoEm DateTime? @map("criado_em") @db.Timestamp(6)
+
+  @@map("relatorios")
+}
+
+model StatusCliente {
+  id   Int    @id @default(autoincrement())
+  nome String @db.VarChar(50)
+
+  @@map("status_cliente")
+}
+
+model RefreshTokenBlacklist {
+  id         Int       @id @default(autoincrement())
+  token      String
+  expiradoEm DateTime? @map("expirado_em") @db.Timestamp(6)
+
+  @@map("refresh_token_blacklist")
+}
