@@ -9,11 +9,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StatusService } from './status.service';
 import { CreateStatusDto, UpdateStatusDto } from './status.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('status')
 export class StatusController {
   constructor(private service: StatusService) {}

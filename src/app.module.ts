@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { SecurityModule } from './auth/security.module';
 import { CargosModule } from './cargos/cargos.module';
 import { CategoriasProdutosModule } from './categorias-produtos/categorias-produtos.module';
 import { ClientesModule } from './clientes/clientes.module';
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     AuthModule,
+    SecurityModule,
     CargosModule,
     CategoriasProdutosModule,
     ClientesModule,

@@ -10,13 +10,42 @@ import { UpdateUserStatusDto } from './users.dto';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly safeUserSelect = {
+    id: true,
+    nome: true,
+    email: true,
+    cpf: true,
+    ativo: true,
+    statusId: true,
+    status: true,
+    cargosUsuario: {
+      include: {
+        cargo: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+    },
+  } as const;
+
   async getUser(id: number) {
     const user = await this.prisma.usuario.findUnique({
       where: { id },
-      include: { status: true },
+      select: this.safeUserSelect,
     });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
-    return user;
+    return {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      cpf: user.cpf,
+      ativo: user.ativo,
+      statusId: user.statusId,
+      status: user.status,
+      cargos: user.cargosUsuario.map((item) => item.cargo),
+    };
   }
 
   async changeStatus(userId: number, dto: UpdateUserStatusDto) {

@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CategoriasProdutosService } from './categorias-produtos.service';
 import {
@@ -16,7 +17,7 @@ import {
   UpdateCategoriaProdutoDto,
 } from './categorias-produtos.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('categorias-produtos')
 export class CategoriasProdutosController {
   constructor(

@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateLogAtendimentoDto,
@@ -16,7 +17,7 @@ import {
 } from './logs-atendimento.dto';
 import { LogsAtendimentoService } from './logs-atendimento.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('logs-atendimento')
 export class LogsAtendimentoController {
   constructor(

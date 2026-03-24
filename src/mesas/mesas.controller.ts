@@ -9,11 +9,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMesaDto, UpdateMesaDto } from './mesas.dto';
 import { MesasService } from './mesas.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('mesas')
 export class MesasController {
   constructor(private readonly mesasService: MesasService) {}

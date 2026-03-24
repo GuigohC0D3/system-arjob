@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateConvenioDto,
@@ -17,7 +18,7 @@ import {
 } from './convenios.dto';
 import { ConveniosService } from './convenios.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('convenios')
 export class ConveniosController {
   constructor(private readonly conveniosService: ConveniosService) {}

@@ -7,19 +7,28 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './auth.dto';
 
 const normalizeCpf = (v: string) => v.replace(/\D/g, '');
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LIMIT = 10;
+const REGISTER_LIMIT = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly authAttempts = new Map<string, number[]>();
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private config: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, ipAddress?: string) {
+    this.enforceRateLimit(`register:${ipAddress ?? 'unknown'}`, REGISTER_LIMIT);
+
     const cpf = normalizeCpf(dto.cpf);
     const email = dto.email.trim().toLowerCase();
 
@@ -60,7 +69,9 @@ export class AuthService {
     });
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ipAddress?: string) {
+    this.enforceRateLimit(`login:${ipAddress ?? 'unknown'}`, LOGIN_LIMIT);
+
     const cpf = normalizeCpf(dto.cpf);
 
     const user = await this.prisma.usuario.findUnique({
@@ -141,13 +152,22 @@ export class AuthService {
     };
   }
 
-  async logout(token: string) {
+  async logout(token: string, userId: number) {
     if (!token) {
       throw new BadRequestException('Token é obrigatório para logout.');
     }
 
-    const decoded = this.jwt.decode(token);
-    if (!decoded || typeof decoded !== 'object' || !('exp' in decoded)) {
+    let decoded: { sub?: number; exp?: number };
+
+    try {
+      decoded = await this.jwt.verifyAsync(token, {
+        secret: this.config.getOrThrow<string>('JWT_SECRET'),
+      });
+    } catch {
+      throw new BadRequestException('Token inválido.');
+    }
+
+    if (!decoded.exp || decoded.sub !== userId) {
       throw new BadRequestException('Token inválido.');
     }
 
@@ -167,5 +187,21 @@ export class AuthService {
     }
 
     return { success: true };
+  }
+
+  private enforceRateLimit(key: string, limit: number): void {
+    const now = Date.now();
+    const attempts = (this.authAttempts.get(key) ?? []).filter(
+      (timestamp) => now - timestamp < AUTH_WINDOW_MS,
+    );
+
+    attempts.push(now);
+    this.authAttempts.set(key, attempts);
+
+    if (attempts.length > limit) {
+      throw new ForbiddenException(
+        'Muitas tentativas recentes. Aguarde alguns minutos e tente novamente.',
+      );
+    }
   }
 }

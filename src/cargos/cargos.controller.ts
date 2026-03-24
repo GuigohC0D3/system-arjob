@@ -9,12 +9,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosService } from './cargos.service';
 import { CreateCargoDto } from './create-cargos.dto';
 import { UpdateCargoDto } from './update-cargos.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('cargos')
 export class CargosController {
   constructor(private readonly cargosService: CargosService) {}

@@ -9,12 +9,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissoesService } from './permissoes.service';
 import { CreatePermissoesDto } from './create-permissoes.dto';
 import { UpdatePermissaoDto } from './update-permissao.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('permissoes')
 export class PermissoesController {
   constructor(private readonly permissoesService: PermissoesService) {}

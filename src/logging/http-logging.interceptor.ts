@@ -41,6 +41,13 @@ export class HttpLoggingInterceptor implements NestInterceptor {
       'authorization',
       'accessToken',
       'refreshToken',
+      'cpf',
+      'email',
+      'telefone',
+      'phone',
+      'matricula',
+      'otpsecret',
+      'otpSecret',
     ]);
 
     if (Array.isArray(value)) {

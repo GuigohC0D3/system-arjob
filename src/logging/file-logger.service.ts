@@ -108,6 +108,10 @@ export class FileLoggerService extends ConsoleLogger {
   }
 
   private serializeMetadata(metadata: LogMetadata): string {
-    return inspect(metadata, { depth: 5, breakLength: Infinity, compact: true });
+    return inspect(metadata, {
+      depth: 5,
+      breakLength: Infinity,
+      compact: true,
+    });
   }
 }

@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateTipoPagamentoDto,
@@ -16,7 +17,7 @@ import {
 } from './tipos-pagamento.dto';
 import { TiposPagamentoService } from './tipos-pagamento.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('tipos-pagamento')
 export class TiposPagamentoController {
   constructor(private readonly tiposPagamentoService: TiposPagamentoService) {}

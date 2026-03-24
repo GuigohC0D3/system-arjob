@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { AdminGuard } from './admin.guard';
 import { AuthService } from './auth.service';
 import { LoginDto, LogoutDto, RegisterDto } from './auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -16,14 +17,15 @@ type AuthenticatedRequest = Request & {
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  register(@Req() req: Request, @Body() dto: RegisterDto) {
+    return this.auth.register(dto, req.ip);
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  login(@Req() req: Request, @Body() dto: LoginDto) {
+    return this.auth.login(dto, req.ip);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -34,8 +36,8 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@Req() req: Request, @Body() dto: LogoutDto) {
+  logout(@Req() req: AuthenticatedRequest, @Body() dto: LogoutDto) {
     const headerToken = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-    return this.auth.logout(dto.token || headerToken || '');
+    return this.auth.logout(dto.token || headerToken || '', req.user.userId);
   }
 }

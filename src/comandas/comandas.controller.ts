@@ -9,11 +9,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ComandasService } from './comandas.service';
 import { CreateComandaDto, UpdateComandaDto } from './comandas.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('comandas')
 export class ComandasController {
   constructor(private readonly comandasService: ComandasService) {}

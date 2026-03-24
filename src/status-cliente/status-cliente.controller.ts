@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateStatusClienteDto,
@@ -16,7 +17,7 @@ import {
 } from './status-cliente.dto';
 import { StatusClienteService } from './status-cliente.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('status-cliente')
 export class StatusClienteController {
   constructor(private readonly statusClienteService: StatusClienteService) {}
