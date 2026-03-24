@@ -32,7 +32,7 @@ async function bootstrap() {
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     next();
   });
-
+  
   app.enableCors({
     origin: ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
