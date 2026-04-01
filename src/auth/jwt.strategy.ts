@@ -4,12 +4,35 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { AUTH_TOKEN_COOKIE } from './auth.constants';
 
 type JwtPayload = {
   sub: number;
   cargos: string[];
   statusId: number | null;
 };
+
+const extractJwtFromCookie = (req: Request) => {
+  const cookieHeader = req.headers.cookie;
+
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const target = cookieHeader
+    .split(';')
+    .map((chunk) => chunk.trim())
+    .find((chunk) => chunk.startsWith(`${AUTH_TOKEN_COOKIE}=`));
+
+  if (!target) {
+    return null;
+  }
+
+  return decodeURIComponent(target.slice(AUTH_TOKEN_COOKIE.length + 1));
+};
+
+const extractJwt = (req: Request) =>
+  extractJwtFromCookie(req) ?? ExtractJwt.fromAuthHeaderAsBearerToken()(req);
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,13 +42,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       passReqToCallback: true,
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractJwt,
       secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
   async validate(req: Request, payload: JwtPayload) {
-    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    const token = extractJwt(req);
 
     if (!token) {
       throw new UnauthorizedException('Token não informado.');
