@@ -9,15 +9,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import {
   CreateStatusClienteDto,
   UpdateStatusClienteDto,
 } from './status-cliente.dto';
 import { StatusClienteService } from './status-cliente.service';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('status-cliente', 'status cliente')
 @Controller('status-cliente')
 export class StatusClienteController {
   constructor(private readonly statusClienteService: StatusClienteService) {}
