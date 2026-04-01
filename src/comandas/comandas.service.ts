@@ -107,7 +107,11 @@ export class ComandasService {
         },
         itens: {
           include: {
-            produtosQuantidade: true,
+            produtosQuantidade: {
+              include: {
+                produto: true,
+              },
+            },
           },
         },
       },
