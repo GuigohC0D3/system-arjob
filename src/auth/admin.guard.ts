@@ -6,19 +6,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import {
+  getAdminCargoNames,
+  normalizeAuthorizationValue,
+} from './authorization.utils';
 
 type AuthenticatedRequest = Request & {
   user?: {
     cargos?: string[];
   };
 };
-
-const normalizeCargo = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -27,14 +24,12 @@ export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const cargos = request.user?.cargos ?? [];
-    const allowedCargos = (this.config.get<string>('ADMIN_CARGOS') ??
-      'admin,administrador')
-      .split(',')
-      .map((cargo) => normalizeCargo(cargo))
-      .filter(Boolean);
+    const allowedCargos = getAdminCargoNames(
+      this.config.get<string>('ADMIN_CARGOS'),
+    );
 
     const isAdmin = cargos.some((cargo) =>
-      allowedCargos.includes(normalizeCargo(cargo)),
+      allowedCargos.includes(normalizeAuthorizationValue(cargo)),
     );
 
     if (!isAdmin) {
