@@ -7,12 +7,14 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { UsersService } from './users.service';
 import { UpdateUserStatusDto } from './users.dto';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('usuarios', 'usuario', 'users', 'user')
 @Controller('users')
 export class UsersController {
   constructor(private users: UsersService) {}
