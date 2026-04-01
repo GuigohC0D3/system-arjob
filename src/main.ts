@@ -1,13 +1,27 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './logging/all-exceptions.filter';
 import { FileLoggerService } from './logging/file-logger.service';
 import { HttpLoggingInterceptor } from './logging/http-logging.interceptor';
 
+function getAllowedOrigins() {
+  const configuredOrigins = (
+    process.env.FRONTEND_ORIGINS ??
+    'http://localhost:5173,http://localhost:3000,http://10.11.1.80:5173,http://10.11.1.80:3000'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return new Set(configuredOrigins);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(FileLoggerService);
+  const allowedOrigins = getAllowedOrigins();
 
   app.useLogger(logger);
   logger.startSession();
@@ -23,7 +37,7 @@ async function bootstrap() {
     }),
   );
 
-  app.use((_, res, next) => {
+  app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
@@ -32,9 +46,16 @@ async function bootstrap() {
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     next();
   });
-  
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
     credentials: true,
   });
 
@@ -44,4 +65,5 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Backend iniciado na porta ${port}`, 'Bootstrap');
 }
+
 void bootstrap();
