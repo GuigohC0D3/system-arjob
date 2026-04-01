@@ -9,15 +9,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import {
   CreateMovimentacaoCaixaDto,
   UpdateMovimentacaoCaixaDto,
 } from './movimentacao-caixa.dto';
 import { MovimentacaoCaixaService } from './movimentacao-caixa.service';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('movimentacao-caixa', 'movimentacao caixa')
 @Controller('movimentacao-caixa')
 export class MovimentacaoCaixaController {
   constructor(
