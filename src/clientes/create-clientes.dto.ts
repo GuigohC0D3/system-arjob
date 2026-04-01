@@ -1,6 +1,8 @@
 import {
   IsEmail,
+  IsBoolean,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -29,4 +31,34 @@ export class CreateClienteDto {
   @IsOptional()
   @IsInt()
   statusId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  saldo?: number;
+
+  @IsOptional()
+  @IsNumber()
+  limite?: number;
+
+  @IsOptional()
+  @IsNumber()
+  consumido?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  bloqueado?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  matricula?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  convenio?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  filial?: string;
 }
