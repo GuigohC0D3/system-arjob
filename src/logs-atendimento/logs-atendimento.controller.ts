@@ -9,15 +9,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import {
   CreateLogAtendimentoDto,
   UpdateLogAtendimentoDto,
 } from './logs-atendimento.dto';
 import { LogsAtendimentoService } from './logs-atendimento.service';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('logs-atendimento', 'log-atendimento')
 @Controller('logs-atendimento')
 export class LogsAtendimentoController {
   constructor(
