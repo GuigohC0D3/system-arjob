@@ -43,6 +43,13 @@ export class ClientesService {
         email: dto.email ?? null,
         telefone: dto.phone ?? null,
         statusId: dto.statusId ?? null,
+        saldo: dto.saldo ?? null,
+        limite: dto.limite ?? null,
+        consumido: dto.consumido ?? null,
+        bloqueado: dto.bloqueado ?? null,
+        matricula: dto.matricula ?? null,
+        convenio: dto.convenio ?? null,
+        filial: dto.filial ?? null,
       },
       include: {
         status: true,
