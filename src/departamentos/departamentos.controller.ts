@@ -9,8 +9,9 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import {
   CreateDepartamentoDto,
   UpdateDepartamentoDto,
@@ -18,7 +19,8 @@ import {
 } from './departamentos.dto';
 import { DepartamentosService } from './departamentos.service';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('departamentos', 'departamento')
 @Controller('departamentos')
 export class DepartamentosController {
   constructor(private readonly departamentosService: DepartamentosService) {}
