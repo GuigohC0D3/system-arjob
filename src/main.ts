@@ -8,8 +8,7 @@ import { HttpLoggingInterceptor } from './logging/http-logging.interceptor';
 
 function getAllowedOrigins() {
   const configuredOrigins = (
-    process.env.FRONTEND_ORIGINS ??
-    'http://localhost:5173,http://localhost:3000,http://10.11.1.80:5173,http://10.11.1.80:3000'
+    process.env.FRONTEND_ORIGINS ?? 'http://localhost:5173,http://localhost:3000'
   )
     .split(',')
     .map((origin) => origin.trim())
@@ -44,6 +43,7 @@ async function bootstrap() {
     res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
     next();
   });
 
