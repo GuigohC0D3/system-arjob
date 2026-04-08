@@ -7,10 +7,10 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './auth.dto';
-import { AUTH_TOKEN_COOKIE } from './auth.constants';
 
 const normalizeCpf = (v: string) => v.replace(/\D/g, '');
 const formatCpf = (v: string) => {
@@ -21,15 +21,15 @@ const formatCpf = (v: string) => {
     .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1-$2');
 };
+
 const AUTH_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_LIMIT = 10;
 const REGISTER_LIMIT = 5;
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
+const REFRESH_TOKEN_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
 @Injectable()
 export class AuthService {
-  private readonly authAttempts = new Map<string, number[]>();
-
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -37,7 +37,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
-    this.enforceRateLimit(`register:${ipAddress ?? 'unknown'}`, REGISTER_LIMIT);
+    await this.enforceRateLimit(`register:${ipAddress ?? 'unknown'}`, REGISTER_LIMIT);
 
     const cpf = normalizeCpf(dto.cpf);
     const email = dto.email.trim().toLowerCase();
@@ -136,7 +136,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ipAddress?: string) {
-    this.enforceRateLimit(`login:${ipAddress ?? 'unknown'}`, LOGIN_LIMIT);
+    await this.enforceRateLimit(`login:${ipAddress ?? 'unknown'}`, LOGIN_LIMIT);
 
     const cpf = normalizeCpf(dto.cpf);
 
@@ -183,22 +183,90 @@ export class AuthService {
 
     const userPayload = this.buildUserPayload(user);
 
+    const expiresInSeconds = Number(
+      this.config.get<string>('JWT_EXPIRES_IN') ?? 3600,
+    );
+
     const accessToken = await this.jwt.signAsync({
       sub: user.id,
       statusId: user.statusId ?? null,
       cargos: userPayload.cargos.map((cargo) => cargo.nome),
     });
 
-    const expiresInSeconds = Number(
-      this.config.get<string>('JWT_EXPIRES_IN') ?? 604800,
-    );
+    const { rawToken: refreshToken } = await this.issueRefreshToken(user.id);
 
     return {
       accessToken,
       expiresInSeconds,
-      user: {
-        ...userPayload,
+      refreshToken,
+      refreshExpiresInSeconds: REFRESH_TOKEN_EXPIRES_MS / 1000,
+      user: userPayload,
+    };
+  }
+
+  async refresh(refreshTokenRaw: string) {
+    if (!refreshTokenRaw) {
+      throw new UnauthorizedException('Refresh token não fornecido.');
+    }
+
+    const hash = createHash('sha256').update(refreshTokenRaw).digest('hex');
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: hash },
+      include: {
+        usuario: {
+          include: {
+            cargosUsuario: {
+              include: {
+                cargo: {
+                  include: {
+                    permissoesCargo: {
+                      include: { permissao: true },
+                    },
+                  },
+                },
+              },
+            },
+            permissoesUsuario: {
+              include: { permissao: true },
+            },
+          },
+        },
       },
+    });
+
+    if (!stored || stored.revogado || stored.expiradoEm < new Date()) {
+      throw new UnauthorizedException('Refresh token inválido ou expirado.');
+    }
+
+    if (stored.usuario.ativo === false) {
+      throw new UnauthorizedException('Usuário inativo.');
+    }
+
+    // Rotação: revoga token antigo, emite novo
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revogado: true },
+    });
+
+    const { rawToken: newRefreshToken } = await this.issueRefreshToken(stored.usuarioId);
+
+    const expiresInSeconds = Number(
+      this.config.get<string>('JWT_EXPIRES_IN') ?? 3600,
+    );
+    const userPayload = this.buildUserPayload(stored.usuario);
+
+    const accessToken = await this.jwt.signAsync({
+      sub: stored.usuario.id,
+      statusId: stored.usuario.statusId ?? null,
+      cargos: userPayload.cargos.map((c) => c.nome),
+    });
+
+    return {
+      accessToken,
+      expiresInSeconds,
+      refreshToken: newRefreshToken,
+      refreshExpiresInSeconds: REFRESH_TOKEN_EXPIRES_MS / 1000,
     };
   }
 
@@ -237,7 +305,7 @@ export class AuthService {
     };
   }
 
-  async logout(token: string, userId: number) {
+  async logout(token: string, userId: number, refreshTokenRaw?: string) {
     if (!token) {
       throw new BadRequestException('Token é obrigatório para logout.');
     }
@@ -257,17 +325,26 @@ export class AuthService {
     }
 
     const expiresAt = new Date(Number(decoded.exp) * 1000);
-    const existing = await this.prisma.refreshTokenBlacklist.findFirst({
-      where: { token },
-      select: { id: true },
-    });
 
-    if (!existing) {
+    try {
       await this.prisma.refreshTokenBlacklist.create({
         data: {
           token,
           expiradoEm: expiresAt,
         },
+      });
+    } catch (err: unknown) {
+      // P2002 = unique constraint violation: token já está na blacklist
+      if ((err as { code?: string }).code !== 'P2002') {
+        throw err;
+      }
+    }
+
+    if (refreshTokenRaw) {
+      const hash = createHash('sha256').update(refreshTokenRaw).digest('hex');
+      await this.prisma.refreshToken.updateMany({
+        where: { tokenHash: hash, usuarioId: userId, revogado: false },
+        data: { revogado: true },
       });
     }
 
@@ -275,19 +352,49 @@ export class AuthService {
   }
 
   getAuthCookieName() {
-    return AUTH_TOKEN_COOKIE;
+    return 'arjob_token';
   }
 
-  private enforceRateLimit(key: string, limit: number): void {
-    const now = Date.now();
-    const attempts = (this.authAttempts.get(key) ?? []).filter(
-      (timestamp) => now - timestamp < AUTH_WINDOW_MS,
-    );
+  private async issueRefreshToken(usuarioId: number) {
+    const rawToken = randomBytes(48).toString('base64url');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
 
-    attempts.push(now);
-    this.authAttempts.set(key, attempts);
+    await this.prisma.refreshToken.create({
+      data: {
+        tokenHash,
+        usuarioId,
+        expiradoEm: expiresAt,
+      },
+    });
 
-    if (attempts.length > limit) {
+    return { rawToken, expiresAt };
+  }
+
+  private async enforceRateLimit(key: string, limit: number): Promise<void> {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - AUTH_WINDOW_MS);
+
+    const entry = await this.prisma.rateLimitEntry.findUnique({
+      where: { chave: key },
+    });
+
+    if (!entry || entry.janelaDe < windowStart) {
+      await this.prisma.rateLimitEntry.upsert({
+        where: { chave: key },
+        update: { tentativas: 1, janelaDe: now },
+        create: { chave: key, tentativas: 1, janelaDe: now },
+      });
+      return;
+    }
+
+    const newCount = entry.tentativas + 1;
+    await this.prisma.rateLimitEntry.update({
+      where: { chave: key },
+      data: { tentativas: newCount },
+    });
+
+    if (newCount > limit) {
       throw new ForbiddenException(
         'Muitas tentativas recentes. Aguarde alguns minutos e tente novamente.',
       );
