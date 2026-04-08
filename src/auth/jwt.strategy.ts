@@ -54,7 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token não informado.');
     }
 
-    const blacklisted = await this.prisma.refreshTokenBlacklist.findFirst({
+    const blacklisted = await this.prisma.refreshTokenBlacklist.findUnique({
       where: { token },
       select: { id: true },
     });
