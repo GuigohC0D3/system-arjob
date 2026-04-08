@@ -20,6 +20,7 @@ model Usuario {
   otpSecret         String?            @map("otp_secret") @db.VarChar(255)
   cargosUsuario     CargoUsuario[]
   permissoesUsuario PermissaoUsuario[]
+  refreshTokens     RefreshToken[]
   status            Status?            @relation(fields: [statusId], references: [id])
 
   @@index([statusId])
@@ -304,8 +305,30 @@ model StatusCliente {
 
 model RefreshTokenBlacklist {
   id         Int       @id @default(autoincrement())
-  token      String
+  token      String    @unique
   expiradoEm DateTime? @map("expirado_em") @db.Timestamp(6)
 
   @@map("refresh_token_blacklist")
+}
+
+model RefreshToken {
+  id         Int      @id @default(autoincrement())
+  tokenHash  String   @unique @map("token_hash") @db.VarChar(64)
+  usuarioId  Int      @map("usuario_id")
+  expiradoEm DateTime @map("expirado_em") @db.Timestamp(6)
+  criadoEm   DateTime @default(now()) @map("criado_em") @db.Timestamp(6)
+  revogado   Boolean  @default(false)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
+}
+
+model RateLimitEntry {
+  id         Int      @id @default(autoincrement())
+  chave      String   @unique
+  tentativas Int      @default(0)
+  janelaDe   DateTime @map("janela_de") @db.Timestamp(6)
+
+  @@map("rate_limit_entries")
 }
